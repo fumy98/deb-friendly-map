@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CATEGORIES } from '@/lib/categories'
 
 type Props = {
@@ -10,18 +10,61 @@ type Props = {
   onCancel: () => void
 }
 
+type NominatimResult = {
+  name?: string
+  display_name: string
+  address: {
+    amenity?: string
+    shop?: string
+    building?: string
+    road?: string
+    neighbourhood?: string
+    suburb?: string
+    city?: string
+  }
+}
+
 const SEVERITY_OPTIONS = [
   { value: 1, label: '少し不便', stars: '⭐' },
   { value: 2, label: 'かなり不便', stars: '⭐⭐' },
   { value: 3, label: '通れない・入れない', stars: '⭐⭐⭐' },
 ]
 
+// Nominatimレスポンスから表示用の場所名を生成
+function extractPlaceName(result: NominatimResult): string {
+  const a = result.address
+  // 施設名 > 店舗名 > 建物名 > 道路名+エリア名の順で優先
+  if (a.amenity) return a.amenity
+  if (a.shop) return a.shop
+  if (result.name) return result.name
+  if (a.building) return a.building
+  if (a.road) return [a.road, a.neighbourhood ?? a.suburb ?? ''].filter(Boolean).join(' ')
+  return a.suburb ?? a.city ?? ''
+}
+
 export default function ReportForm({ lat, lng, onSubmit, onCancel }: Props) {
   const [selectedCats, setSelectedCats] = useState<string[]>([])
   const [severity, setSeverity] = useState<number | null>(null)
+  const [title, setTitle] = useState('')
+  const [titleLoading, setTitleLoading] = useState(true)
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // 座標から場所名を自動取得
+  useEffect(() => {
+    setTitleLoading(true)
+    fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=ja`,
+      { headers: { 'User-Agent': 'deb-friendly-map/1.0' } }
+    )
+      .then(r => r.json())
+      .then((data: NominatimResult) => {
+        setTitle(extractPlaceName(data))
+      })
+      .catch(() => {})
+      .finally(() => setTitleLoading(false))
+  }, [lat, lng])
 
   const toggleCat = (slug: string) => {
     setSelectedCats(prev =>
@@ -43,6 +86,7 @@ export default function ReportForm({ lat, lng, onSubmit, onCancel }: Props) {
           latitude: lat,
           longitude: lng,
           severity,
+          title: title || null,
           description: description || null,
           categorySlugs: selectedCats,
         }),
@@ -63,9 +107,23 @@ export default function ReportForm({ lat, lng, onSubmit, onCancel }: Props) {
         <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
       </div>
 
-      <p className="text-xs text-gray-400 mb-4">
-        {lat.toFixed(5)}, {lng.toFixed(5)}
-      </p>
+      {/* 場所名（自動取得＋編集可能） */}
+      <div className="mb-4">
+        <p className="text-sm font-semibold text-gray-700 mb-1">場所名</p>
+        {titleLoading ? (
+          <div className="w-full border border-gray-200 rounded-xl p-3 text-sm text-gray-400 bg-gray-50 animate-pulse">
+            場所を取得中...
+          </div>
+        ) : (
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="例：渋谷駅 南口、〇〇カフェ"
+            className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-blue-400"
+          />
+        )}
+      </div>
 
       {/* カテゴリ */}
       <p className="text-sm font-semibold text-gray-700 mb-2">どんな不便がありますか？（複数可）</p>
@@ -118,7 +176,7 @@ export default function ReportForm({ lat, lng, onSubmit, onCancel }: Props) {
 
       <button
         onClick={handleSubmit}
-        disabled={loading}
+        disabled={loading || titleLoading}
         className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl disabled:opacity-50 transition-all"
       >
         {loading ? '投稿中...' : '🗺️ 地図に投稿する'}

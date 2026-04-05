@@ -10,6 +10,7 @@ type Report = {
   latitude: number
   longitude: number
   severity: number
+  title: string | null
   description: string | null
   categories: { slug: string; labelJa: string; icon: string }[]
 }
@@ -19,6 +20,7 @@ type ClickedPin = {
   severity: number
   description: string
   label: string
+  title: string
   icon: string
   x: number
   y: number
@@ -67,6 +69,7 @@ export default function MapView() {
           color: SEVERITY_COLOR[r.severity] ?? '#2563eb',
           icon: r.categories[0]?.icon ?? '📍',
           label: r.categories.map(c => c.labelJa).join('・'),
+          title: r.title ?? '',
           description: r.description ?? '',
         },
       })),
@@ -174,6 +177,7 @@ export default function MapView() {
         severity: props.severity,
         description: props.description ?? '',
         label: props.label ?? '',
+        title: props.title ?? '',
         icon: props.icon ?? '📍',
         x: e.point.x,
         y: e.point.y,
@@ -240,17 +244,18 @@ export default function MapView() {
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">{clickedPin.icon}</span>
             <div>
-              <div className="text-xs font-bold text-gray-900">
-                {clickedPin.label || '不明'}
-              </div>
-              <div className="text-xs text-gray-500">
+              {clickedPin.title && (
+                <div className="text-sm font-bold text-gray-900 mb-0.5">{clickedPin.title}</div>
+              )}
+              <div className="text-xs text-gray-500">{clickedPin.label || '不明'}</div>
+              <div className="text-xs text-gray-400">
                 {'⭐'.repeat(clickedPin.severity)}
                 {['', ' 少し不便', ' かなり不便', ' 通れない・入れない'][clickedPin.severity]}
               </div>
             </div>
           </div>
           {clickedPin.description && (
-            <p className="text-xs text-gray-600 mt-1">{clickedPin.description}</p>
+            <p className="text-xs text-gray-600 mt-1 border-t border-gray-100 pt-2">{clickedPin.description}</p>
           )}
         </div>
       )}
