@@ -15,7 +15,11 @@ type Report = {
 }
 
 type ClickedPin = {
-  report: Report
+  id: string
+  severity: number
+  description: string
+  label: string
+  icon: string
   x: number
   y: number
 }
@@ -165,16 +169,15 @@ export default function MapView() {
     map.current.on('click', 'unclustered-point', e => {
       if (!e.features?.[0]) return
       const props = e.features[0].properties
-      const coords = (e.features[0].geometry as GeoJSON.Point).coordinates as [number, number]
-      const report = reports.find(r => r.id === props.id) ?? {
+      setClickedPin({
         id: props.id,
-        latitude: coords[1],
-        longitude: coords[0],
         severity: props.severity,
-        description: props.description,
-        categories: [],
-      }
-      setClickedPin({ report, x: e.point.x, y: e.point.y })
+        description: props.description ?? '',
+        label: props.label ?? '',
+        icon: props.icon ?? '📍',
+        x: e.point.x,
+        y: e.point.y,
+      })
       setFormPos(null)
     })
 
@@ -235,19 +238,19 @@ export default function MapView() {
             className="absolute top-2 right-3 text-gray-400 hover:text-gray-600"
           >✕</button>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl">{clickedPin.report.categories[0]?.icon ?? '📍'}</span>
+            <span className="text-2xl">{clickedPin.icon}</span>
             <div>
               <div className="text-xs font-bold text-gray-900">
-                {clickedPin.report.categories.map(c => c.labelJa).join('・') || '不明'}
+                {clickedPin.label || '不明'}
               </div>
               <div className="text-xs text-gray-500">
-                {'⭐'.repeat(clickedPin.report.severity)}
-                {['', ' 少し不便', ' かなり不便', ' 通れない・入れない'][clickedPin.report.severity]}
+                {'⭐'.repeat(clickedPin.severity)}
+                {['', ' 少し不便', ' かなり不便', ' 通れない・入れない'][clickedPin.severity]}
               </div>
             </div>
           </div>
-          {clickedPin.report.description && (
-            <p className="text-xs text-gray-600 mt-1">{clickedPin.report.description}</p>
+          {clickedPin.description && (
+            <p className="text-xs text-gray-600 mt-1">{clickedPin.description}</p>
           )}
         </div>
       )}
