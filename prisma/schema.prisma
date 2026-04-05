@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  reports   Report[]
+  votes     Vote[]
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  latitude    Float
+  longitude   Float
+  severity    Int          @default(1) // 1=少し不便 2=かなり不便 3=通れない・入れない
+  title       String?
+  description String?
+  photos      Photo[]
+  categories  Category[]   @relation("ReportCategories")
+  votes       Vote[]
+  status      ReportStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([latitude, longitude])
+}
+
+model Category {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  labelJa String
+  icon    String
+  reports Report[] @relation("ReportCategories")
+}
+
+model Photo {
+  id       String @id @default(cuid())
+  reportId String
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  url      String
+  order    Int    @default(0)
+}
+
+model Vote {
+  id       String @id @default(cuid())
+  userId   String
+  reportId String
+  user     User   @relation(fields: [userId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reportId])
+}
+
+enum ReportStatus {
+  ACTIVE
+  HIDDEN
+  OUTDATED
+}
